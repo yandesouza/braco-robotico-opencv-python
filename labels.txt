@@ -1,0 +1,4 @@
+0 Circulo
+1 Triangulo
+2 Hexagono
+3 Octogono

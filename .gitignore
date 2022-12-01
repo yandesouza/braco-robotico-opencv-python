@@ -153,3 +153,7 @@ cython_debug/
 
 synchronousImageTransmissionViaRemoteApi.ttt
 opencv.py
+img_train/
+data/
+IMAGENS/
+model_dataset/
