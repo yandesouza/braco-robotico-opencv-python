@@ -23,8 +23,11 @@ from zmqRemoteApi import RemoteAPIClient
 pip install pyzmq
 pip install cbor
 """
+######################################################
+#####              BLOCO DE FUNÇÕES              #####
+######################################################
 
-#Stack Images
+# Stack Images
 def stackImages(scale,imgArray):
     rows = len(imgArray)
     cols = len(imgArray[0])
@@ -56,7 +59,7 @@ def stackImages(scale,imgArray):
         ver = hor
     return ver
 
-#Get Contours
+# Get Contours
 def getContours(imag):
     contours,hierarchy = cv2.findContours(imag,cv2.RETR_EXTERNAL ,cv2.CHAIN_APPROX_NONE)
     for cnt in contours:
@@ -85,25 +88,7 @@ def getContours(imag):
                         (x+(w//2)-50, y+(h//2)-10),cv2.FONT_HERSHEY_DUPLEX,0.7,
                         (50,50,50),2)
 
-#model = load_model('model_dataset\model.h5')
-
-
-######    CAPTURA DE IMAGENS    #####################
-
-myPath = 'data/images'
-moduleVal = 10  # SAVE EVERY ITH FRAME TO AVOID REPETITION
-minBlur = 0  # SMALLER VALUE MEANS MORE BLURRINESS PRESENT
-grayImage = True # IMAGES SAVED COLORED OR GRAY
-cannyImage = False # IMAGES SAVED COLORED OR CANNY
-saveData = True   # SAVE DATA FLAG
-imgWidth = 180
-imgHeight = 120
-
-global countFolder
-
-count = 0
-countSave =0
-
+# Salvar Imagens Capturadas
 def saveDataFunc():
     global countFolder
     countFolder = 0
@@ -111,22 +96,184 @@ def saveDataFunc():
         countFolder += 1
     os.makedirs(myPath + str(countFolder))
 
-if saveData:saveDataFunc()
 
+def partsAnalyze():
+    targetPose=sim.getObjectPose(sim.getObject(ObjP1),sim.handle_world)
+    movementData = {
+        'id': 'partsInit',
+        'targetPose': targetPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
+    }
+    sim.callScriptFunction('remoteApi_movementDataFunction',scriptHandle,movementData)
+
+    targetPose=sim.getObjectPose(sim.getObject(ObjP2),sim.handle_world)
+    movementData = {
+        'id': 'partsEnd',
+        'targetPose': targetPose,
+        'maxVel': maxVel/10,
+        'maxAccel': maxAccel
+    }
+    sim.callScriptFunction('remoteApi_movementDataFunction',scriptHandle,movementData)
+    sim.callScriptFunction('remoteApi_executeMovement',scriptHandle,'partsInit')
+    sim.callScriptFunction('remoteApi_executeMovement',scriptHandle,'partsEnd')
+    waitForMovementExecuted('partsInit')
+    camera('partsEnd')
+
+
+def boxAnalyze():
+    targetPose=sim.getObjectPose(sim.getObject(ObjC1),sim.handle_world)
+    movementData = {
+        'id': 'boxInit',
+        'targetPose': targetPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
+    }
+    sim.callScriptFunction('remoteApi_movementDataFunction',scriptHandle,movementData)
+
+    targetPose=sim.getObjectPose(sim.getObject(ObjC2),sim.handle_world)
+    movementData = {
+        'id': 'boxEnd',
+        'targetPose': targetPose,
+        'maxVel': maxVel/10,
+        'maxAccel': maxAccel
+    }
+    sim.callScriptFunction('remoteApi_movementDataFunction',scriptHandle,movementData)
+    sim.callScriptFunction('remoteApi_executeMovement',scriptHandle,'boxInit')
+    sim.callScriptFunction('remoteApi_executeMovement',scriptHandle,'boxEnd')
+    waitForMovementExecuted('boxInit')
+    camera('boxEnd')
+
+
+def posZero():
+    movementData = {
+        'id': 'movInit',
+        'targetPose': initialPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
+    }
+    movementData2 = {
+        'id' : 'posZero',
+        'handles'    : simJoints,
+        'maxVelJ'    : [ 0.1,  0.1,  0.1,  0.1,  0.1,  0.1,  0.1],
+        'maxAccelJ'  : [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
+        'maxJerkJ'   : [  80,   80,   80,   80,   80,   80,   80],
+        'targetConf' : [   0,    0,    0,    0,    0,    0,    0]
+    }
+
+    sim.callScriptFunction('remoteApi_movementDataFunction',scriptHandle,movementData)
+    sim.callScriptFunction('remoteApi_executeMovement',scriptHandle,'movInit')
+    
+    waitForMovementExecuted('movInit')
+    sim.callScriptFunction('moveToConfig',scriptHandle,movementData2)
+
+
+def waitForMovementExecuted(id_):
+    global executedMovId, stringSignalName
+    while executedMovId != id_:
+        s = sim.getStringSignal(stringSignalName)
+        executedMovId = s
+
+
+def camera(id_):
+    global executedMovId, stringSignalName, img
+    while executedMovId != id_:
+        img, res = sim.getVisionSensorImg(visionSensorHandle)
+        img = np.frombuffer(img, dtype=np.uint8).reshape(res[0], res[1], 3)    
+        
+        if saveData:
+            img2 = cv2.resize(img,(imgWidth,imgHeight))
+            if grayImage:
+                img2 = cv2.cvtColor(img2,cv2.COLOR_BGR2GRAY)
+            if cannyImage:
+                img2 = cv2.Canny(img,100,100)
+            
+            blur = cv2.Laplacian(img2, cv2.CV_64F).var()
+            if count % moduleVal ==0 and blur > minBlur:
+                nowTime = time.time()
+                cv2.imwrite(myPath + str(countFolder) +
+                        '/' + str(countSave)+"_"+ str(int(blur))+"_"+str(nowTime)+".png", img2)
+                countSave+=1
+            count += 1
+
+        # In CoppeliaSim images are left to right (x-axis), and bottom to top (y-axis)
+        # (consistent with the axes of vision sensors, pointing Z outwards, Y up)
+        # and color format is RGB triplets, whereas OpenCV uses BGR:
+        '''
+        img = cv2.flip(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), 0)
+        img = cv2.resize(img, (541 , 541))
+        img_tensor = tf.convert_to_tensor(img, dtype=tf.uint8)
+        img_tensor = tf.expand_dims(img_tensor , 0)
+        '''
+        # prediction = model.predict(img_tensor)
+        #boxes, scores, classes, num_detections = model(img_tensor)
+        imgCanny = cv2.Canny(img,100,100)
+        #kernel = np.ones((5,5),np.uint8)
+        #imgDialation = cv2.dilate(imgCanny,kernel,iterations=3) #dilata as linhas
+        #imgEroded = cv2.erode(imgDialation,kernel,iterations=3) #contrai as linhas
+        #getContours(imgEroded)
+        
+        getContours(imgCanny)
+
+        #imgStack = stackImages(1,[img,imgCanny,imgEroded])
+        imgStack = stackImages(1,[img,imgCanny])
+
+        cv2.imshow('Camera_robo', imgStack)
+        #cv2.imshow('Camera_robo',img)
+        cv2.waitKey(1)
+        #client.step()  # triggers next simulation step
+
+        executedMovId = sim.getStringSignal(stringSignalName)
+    pass
+
+######    CAPTURA DE IMAGENS    #####################
+myPath = 'data/images'
+moduleVal = 10  # SAVE EVERY ITH FRAME TO AVOID REPETITION
+minBlur = 0  # SMALLER VALUE MEANS MORE BLURRINESS PRESENT
+grayImage = False # IMAGES SAVED COLORED OR GRAY
+cannyImage = True # IMAGES SAVED COLORED OR CANNY
+
+saveData = False   # SAVE DATA FLAG
+
+imgWidth = 240
+imgHeight = 240
+
+global countFolder
+
+count = 0
+countSave = 0
+
+if saveData:saveDataFunc()
 #####################################################
+
+#model = load_model('model_dataset\model.h5')
 
 print('Programa iniciado')
 
 client = RemoteAPIClient()
 sim = client.getObject('sim')
 
+executedMovId = 'notReady'
+targetArm = '/LBRiiwa14R820'
+manipulatorHandle = sim.getObject(targetArm)
 visionSensorHandle = sim.getObject('/Vision_sensor')
-manipulatorHandle = sim.getObject('/LBRiiwa14R820')
-vacuumHandle = sim.getObject('/BaxterVacuumCup')
+vacuumHandle = sim.getObject('/suctionPad')
 trianguloHandle = sim.getObject('/Triangulo')
 discoHandle = sim.getObject('/Disco')
 hexagonoHandle = sim.getObject('/Hexagono')
 octogonoHandle = sim.getObject('/Octogono')
+ObjC1 = '/ObjC1'
+ObjC2 = '/ObjC2'
+ObjP1 = '/ObjP1'
+ObjP2 = '/ObjP2'
+stringSignalName = targetArm + '_executedMovId'
+scriptHandle = sim.getScript(sim.scripttype_childscript,manipulatorHandle)
+maxVel = 0.1
+maxAccel = 0.01
+
+simJoints={}
+for i in range(1,8,1):
+    simJoints[i]=sim.getObject('./joint',{'index':i-1})
 
 
 # When simulation is not running, ZMQ message handling could be a bit
@@ -136,55 +283,33 @@ defaultIdleFps = sim.getInt32Param(sim.intparam_idle_fps)
 sim.setInt32Param(sim.intparam_idle_fps, 0)
 
 
-client.setStepping(True)
+#client.setStepping(True)
+operando = True
+
+## VARIAVEIS DE VERIFICAÇÃO DE ÚLTIMA ANÁLISE
+analyzed = 0
+
+
 sim.startSimulation()
+waitForMovementExecuted('ready')
+initialPose, initialConfig = sim.callScriptFunction('remoteApi_getPoseAndConfig',scriptHandle)
 
-while (True):
-    img, res = sim.getVisionSensorImg(visionSensorHandle)
-    img = np.frombuffer(img, dtype=np.uint8).reshape(res[0], res[1], 3)    
-    if saveData:
-        img2 = cv2.resize(img,(imgWidth,imgHeight))
-        if grayImage:
-            img2 = cv2.cvtColor(img2,cv2.COLOR_BGR2GRAY)
-        if cannyImage:
-            img2 = cv2.Canny(img,100,100)
-        
-        blur = cv2.Laplacian(img2, cv2.CV_64F).var()
-        if count % moduleVal ==0 and blur > minBlur:
-            nowTime = time.time()
-            cv2.imwrite(myPath + str(countFolder) +
-                    '/' + str(countSave)+"_"+ str(int(blur))+"_"+str(nowTime)+".png", img2)
-            countSave+=1
-        count += 1
-
+while (operando):
+    if analyzed == 0:
+        partsAnalyze()
+    else:
+        boxAnalyze()
     
+    ###
 
-    # In CoppeliaSim images are left to right (x-axis), and bottom to top (y-axis)
-    # (consistent with the axes of vision sensors, pointing Z outwards, Y up)
-    # and color format is RGB triplets, whereas OpenCV uses BGR:
-    '''
-    img = cv2.flip(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), 0)
-    img = cv2.resize(img, (541 , 541))
-    img_tensor = tf.convert_to_tensor(img, dtype=tf.uint8)
-    img_tensor = tf.expand_dims(img_tensor , 0)
-    '''
-    # prediction = model.predict(img_tensor)
-    #boxes, scores, classes, num_detections = model(img_tensor)
-    imgCanny = cv2.Canny(img,100,100)
-    #kernel = np.ones((5,5),np.uint8)
-    #imgDialation = cv2.dilate(imgCanny,kernel,iterations=3) #dilata as linhas
-    #imgEroded = cv2.erode(imgDialation,kernel,iterations=3) #contrai as linhas
-    #getContours(imgEroded)
+    ###
     
-    getContours(imgCanny)
-
-    #imgStack = stackImages(1,[img,imgCanny,imgEroded])
-    imgStack = stackImages(1,[img,imgCanny])
-
-    cv2.imshow('Camera_robo', imgStack)
-    #cv2.imshow('Camera_robo',img)
-    cv2.waitKey(1)
-    client.step()  # triggers next simulation step
+    if analyzed == 0:
+        analyzed = 1
+        posZero()
+    else:
+        analyzed = 0
+        posZero()
 
 sim.stopSimulation()
 
