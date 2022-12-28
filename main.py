@@ -18,6 +18,7 @@ import time
 #from keras.models import load_model
 
 from zmqRemoteApi import RemoteAPIClient
+import handles
 
 """ NECESSITA INSTALAÇÃO DE CBOR E PYZMQ no ambiente python
 pip install pyzmq
@@ -98,87 +99,109 @@ def saveDataFunc():
 
 
 def partsAnalyze():
-    targetPose=sim.getObjectPose(sim.getObject(ObjP1),sim.handle_world)
+    intermed(handles.inter1)
+
+    targetPose=sim.getObjectPose(sim.getObject(handles.objP1),sim.handle_world)
     movementData = {
         'id': 'partsInit',
         'targetPose': targetPose,
         'maxVel': maxVel,
         'maxAccel': maxAccel
     }
-    sim.callScriptFunction('remoteApi_movementDataFunction',scriptHandle,movementData)
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
 
-    targetPose=sim.getObjectPose(sim.getObject(ObjP2),sim.handle_world)
+    targetPose=sim.getObjectPose(sim.getObject(handles.objP2),sim.handle_world)
     movementData = {
         'id': 'partsEnd',
         'targetPose': targetPose,
-        'maxVel': maxVel/10,
+        'maxVel': maxVel,
         'maxAccel': maxAccel
     }
-    sim.callScriptFunction('remoteApi_movementDataFunction',scriptHandle,movementData)
-    sim.callScriptFunction('remoteApi_executeMovement',scriptHandle,'partsInit')
-    sim.callScriptFunction('remoteApi_executeMovement',scriptHandle,'partsEnd')
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'partsInit')
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'partsEnd')
     waitForMovementExecuted('partsInit')
     camera('partsEnd')
 
+    intermed(handles.inter1)
+
 
 def boxAnalyze():
-    targetPose=sim.getObjectPose(sim.getObject(ObjC1),sim.handle_world)
+    intermed(handles.inter2)
+
+    targetPose=sim.getObjectPose(sim.getObject(handles.objC1),sim.handle_world)
     movementData = {
         'id': 'boxInit',
         'targetPose': targetPose,
         'maxVel': maxVel,
         'maxAccel': maxAccel
     }
-    sim.callScriptFunction('remoteApi_movementDataFunction',scriptHandle,movementData)
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
 
-    targetPose=sim.getObjectPose(sim.getObject(ObjC2),sim.handle_world)
+    targetPose=sim.getObjectPose(sim.getObject(handles.objC2),sim.handle_world)
     movementData = {
         'id': 'boxEnd',
         'targetPose': targetPose,
-        'maxVel': maxVel/10,
+        'maxVel': maxVel,
         'maxAccel': maxAccel
     }
-    sim.callScriptFunction('remoteApi_movementDataFunction',scriptHandle,movementData)
-    sim.callScriptFunction('remoteApi_executeMovement',scriptHandle,'boxInit')
-    sim.callScriptFunction('remoteApi_executeMovement',scriptHandle,'boxEnd')
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'boxInit')
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'boxEnd')
     waitForMovementExecuted('boxInit')
     camera('boxEnd')
 
+    intermed(handles.inter2)
+
+
+def intermed(position):
+    targetPose=sim.getObjectPose(sim.getObject(position),sim.handle_world)
+    movementData = {
+        'id': 'inter',
+        'targetPose': targetPose,
+        'maxVel': maxVel*1.5,
+        'maxAccel': maxAccel*1.5
+    }
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'inter')
+    waitForMovementExecuted('inter')
+
 
 def posZero():
+    targetPose=sim.getObjectPose(sim.getObject(handles.zero),sim.handle_world)
     movementData = {
         'id': 'movInit',
-        'targetPose': initialPose,
+        'targetPose': targetPose,
         'maxVel': maxVel,
         'maxAccel': maxAccel
     }
     movementData2 = {
         'id' : 'posZero',
-        'handles'    : simJoints,
-        'maxVelJ'    : [ 0.1,  0.1,  0.1,  0.1,  0.1,  0.1,  0.1],
-        'maxAccelJ'  : [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
-        'maxJerkJ'   : [  80,   80,   80,   80,   80,   80,   80],
-        'targetConf' : [   0,    0,    0,    0,    0,    0,    0]
+        'handles'    : handles.simJoints,
+        'maxVelJ'    : [ 0.01,  0.01,  0.01,  0.01,  0.01,  0.01,  0.01],
+        'maxAccelJ'  : [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001],
+        'maxJerkJ'   : [   80,    80,    80,    80,    80,    80,    80],
+        'targetConf' : [    0,     0,     0,     0,     0,     0,     0]
     }
 
-    sim.callScriptFunction('remoteApi_movementDataFunction',scriptHandle,movementData)
-    sim.callScriptFunction('remoteApi_executeMovement',scriptHandle,'movInit')
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'movInit')
     
     waitForMovementExecuted('movInit')
-    sim.callScriptFunction('moveToConfig',scriptHandle,movementData2)
+    sim.callScriptFunction('moveToConfig',handles.script,movementData2)
 
 
 def waitForMovementExecuted(id_):
-    global executedMovId, stringSignalName
+    global executedMovId
     while executedMovId != id_:
-        s = sim.getStringSignal(stringSignalName)
+        s = sim.getStringSignal(handles.stringSignalName)
         executedMovId = s
 
 
 def camera(id_):
-    global executedMovId, stringSignalName, img
+    global img, executedMovId
     while executedMovId != id_:
-        img, res = sim.getVisionSensorImg(visionSensorHandle)
+        img, res = sim.getVisionSensorImg(handles.visionSensor)
         img = np.frombuffer(img, dtype=np.uint8).reshape(res[0], res[1], 3)    
         
         if saveData:
@@ -199,14 +222,14 @@ def camera(id_):
         # In CoppeliaSim images are left to right (x-axis), and bottom to top (y-axis)
         # (consistent with the axes of vision sensors, pointing Z outwards, Y up)
         # and color format is RGB triplets, whereas OpenCV uses BGR:
-        '''
         img = cv2.flip(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), 0)
-        img = cv2.resize(img, (541 , 541))
-        img_tensor = tf.convert_to_tensor(img, dtype=tf.uint8)
-        img_tensor = tf.expand_dims(img_tensor , 0)
-        '''
+        img = cv2.resize(img, (300 , 300))
+       
+       # img_tensor = tf.convert_to_tensor(img, dtype=tf.uint8)
+        # img_tensor = tf.expand_dims(img_tensor , 0)
         # prediction = model.predict(img_tensor)
         #boxes, scores, classes, num_detections = model(img_tensor)
+
         imgCanny = cv2.Canny(img,100,100)
         #kernel = np.ones((5,5),np.uint8)
         #imgDialation = cv2.dilate(imgCanny,kernel,iterations=3) #dilata as linhas
@@ -223,7 +246,7 @@ def camera(id_):
         cv2.waitKey(1)
         #client.step()  # triggers next simulation step
 
-        executedMovId = sim.getStringSignal(stringSignalName)
+        executedMovId = sim.getStringSignal(handles.stringSignalName)
     pass
 
 ######    CAPTURA DE IMAGENS    #####################
@@ -254,26 +277,10 @@ client = RemoteAPIClient()
 sim = client.getObject('sim')
 
 executedMovId = 'notReady'
-targetArm = '/LBRiiwa14R820'
-manipulatorHandle = sim.getObject(targetArm)
-visionSensorHandle = sim.getObject('/Vision_sensor')
-vacuumHandle = sim.getObject('/suctionPad')
-trianguloHandle = sim.getObject('/Triangulo')
-discoHandle = sim.getObject('/Disco')
-hexagonoHandle = sim.getObject('/Hexagono')
-octogonoHandle = sim.getObject('/Octogono')
-ObjC1 = '/ObjC1'
-ObjC2 = '/ObjC2'
-ObjP1 = '/ObjP1'
-ObjP2 = '/ObjP2'
-stringSignalName = targetArm + '_executedMovId'
-scriptHandle = sim.getScript(sim.scripttype_childscript,manipulatorHandle)
-maxVel = 0.1
-maxAccel = 0.01
 
-simJoints={}
-for i in range(1,8,1):
-    simJoints[i]=sim.getObject('./joint',{'index':i-1})
+maxVel = 0.1
+maxAccel = 0.005
+
 
 
 # When simulation is not running, ZMQ message handling could be a bit
@@ -287,15 +294,16 @@ sim.setInt32Param(sim.intparam_idle_fps, 0)
 operando = True
 
 ## VARIAVEIS DE VERIFICAÇÃO DE ÚLTIMA ANÁLISE
-analyzed = 0
-
+analyzed = True # True = Peças / False = Caixas
+escape = 0
+limit = 2
 
 sim.startSimulation()
 waitForMovementExecuted('ready')
-initialPose, initialConfig = sim.callScriptFunction('remoteApi_getPoseAndConfig',scriptHandle)
+#initialPose, initialConfig = sim.callScriptFunction('remoteApi_getPoseAndConfig',handles.script)
 
 while (operando):
-    if analyzed == 0:
+    if analyzed:
         partsAnalyze()
     else:
         boxAnalyze()
@@ -304,24 +312,28 @@ while (operando):
 
     ###
     
-    if analyzed == 0:
-        analyzed = 1
+    if analyzed:
+        analyzed = False
         posZero()
+        escape = escape+1
     else:
-        analyzed = 0
+        analyzed = True
         posZero()
+        escape = escape+1
+    
+    if escape == limit:
+        operando = False
 
 sim.stopSimulation()
 
 # Restore the original idle loop frequency:
 sim.setInt32Param(sim.intparam_idle_fps, defaultIdleFps)
 
-input("Pressione qualquer tecla para finalizar.")
+#input("Pressione qualquer tecla para finalizar.")
 cv2.destroyAllWindows()
 
 print('Program ended')
 
-#sim.stopSimulation()
 
 """
 Rotina do Robô:
