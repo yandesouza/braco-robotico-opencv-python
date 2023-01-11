@@ -12,18 +12,14 @@ import numpy as np
 import cv2
 import time
 
-#import tensorflow as tf
-#from tensorflow import keras
-#from tensorflow.keras import layers
-#from keras.models import load_model
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+from keras.models import load_model
 
 from zmqRemoteApi import RemoteAPIClient
 import handles
 
-""" NECESSITA INSTALAÇÃO DE CBOR E PYZMQ no ambiente python
-pip install pyzmq
-pip install cbor
-"""
 ######################################################
 #####              BLOCO DE FUNÇÕES              #####
 ######################################################
@@ -97,7 +93,7 @@ def saveDataFunc():
         countFolder += 1
     os.makedirs(myPath + str(countFolder))
 
-
+# Analise Peças
 def partsAnalyze():
     intermed(handles.inter1)
 
@@ -125,7 +121,7 @@ def partsAnalyze():
 
     intermed(handles.inter1)
 
-
+# Analisa locais para depositar as peças
 def boxAnalyze():
     intermed(handles.inter2)
 
@@ -153,7 +149,7 @@ def boxAnalyze():
 
     intermed(handles.inter2)
 
-
+# Ponto de movimento intermediário de movimentação para evitar limite de juntas
 def intermed(position):
     targetPose=sim.getObjectPose(sim.getObject(position),sim.handle_world)
     movementData = {
@@ -166,7 +162,7 @@ def intermed(position):
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'inter')
     waitForMovementExecuted('inter')
 
-
+# Ponto zero do manipulador
 def posZero():
     targetPose=sim.getObjectPose(sim.getObject(handles.zero),sim.handle_world)
     movementData = {
@@ -190,7 +186,7 @@ def posZero():
     waitForMovementExecuted('movInit')
     sim.callScriptFunction('moveToConfig',handles.script,movementData2)
 
-
+# Interrompe execução de outras partes do código enquanto algum movimento é executado
 def waitForMovementExecuted(id_):
     global executedMovId
     while executedMovId != id_:
@@ -202,7 +198,31 @@ def camera(id_):
     global img, executedMovId
     while executedMovId != id_:
         img, res = sim.getVisionSensorImg(handles.visionSensor)
-        img = np.frombuffer(img, dtype=np.uint8).reshape(res[0], res[1], 3)    
+        img = np.frombuffer(img, dtype=np.uint8).reshape(res[0], res[1], 3)
+        img = cv2.flip(img, 0)
+        
+
+        # TENSORFLOW CODE
+        img_tf = cv2.resize(img, (224, 224), interpolation=cv2.INTER_AREA)
+        # Make the image a numpy array and reshape it to the models input shape.
+        img_tf = np.asarray(img_tf, dtype=np.float32).reshape(1, 224, 224, 3)
+        # Normalize the image array
+        img_tf = (img_tf / 127.5) - 1
+        # Have the model predict what the current image is. Model.predict
+        # returns an array of percentages. Example:[0.2,0.8] meaning its 20% sure
+        # it is the first label and 80% sure its the second label.
+        probabilities = model.predict(img_tf)
+        # Print what the highest value probabilitie label
+        print(labels[np.argmax(probabilities)])
+        
+        # END TENSORFLOW CODE
+        
+
+        # In CoppeliaSim images are left to right (x-axis), and bottom to top (y-axis)
+        # (consistent with the axes of vision sensors, pointing Z outwards, Y up)
+        # and color format is RGB triplets, whereas OpenCV uses BGR:
+        
+        cascades(img)
         
         if saveData:
             img2 = cv2.resize(img,(imgWidth,imgHeight))
@@ -219,15 +239,12 @@ def camera(id_):
                 countSave+=1
             count += 1
 
-        # In CoppeliaSim images are left to right (x-axis), and bottom to top (y-axis)
-        # (consistent with the axes of vision sensors, pointing Z outwards, Y up)
-        # and color format is RGB triplets, whereas OpenCV uses BGR:
-        img = cv2.flip(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), 0)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = cv2.resize(img, (300 , 300))
        
-       # img_tensor = tf.convert_to_tensor(img, dtype=tf.uint8)
-        # img_tensor = tf.expand_dims(img_tensor , 0)
-        # prediction = model.predict(img_tensor)
+        #img_tensor = tf.convert_to_tensor(img, dtype=tf.uint8)
+        #img_tensor = tf.expand_dims(img_tensor , 0)
+        #prediction = model.predict(img_tensor)
         #boxes, scores, classes, num_detections = model(img_tensor)
 
         imgCanny = cv2.Canny(img,100,100)
@@ -239,24 +256,40 @@ def camera(id_):
         getContours(imgCanny)
 
         #imgStack = stackImages(1,[img,imgCanny,imgEroded])
-        imgStack = stackImages(1,[img,imgCanny])
+        #imgStack = stackImages(1,[img,imgCanny])
 
-        cv2.imshow('Camera_robo', imgStack)
-        #cv2.imshow('Camera_robo',img)
+        #cv2.imshow('Camera_robo', imgStack)
+        cv2.imshow('Camera_robo',img)
         cv2.waitKey(1)
-        #client.step()  # triggers next simulation step
-
+        
         executedMovId = sim.getStringSignal(handles.stringSignalName)
     pass
 
+
+def cascades(img):
+    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    disc = discCascade.detectMultiScale(gray,1.1,4)
+    hexagon = hexagonCascade.detectMultiScale(gray,1.1,4)
+    octogon = octogonCascade.detectMultiScale(gray,1.1,4)
+    triangle = triangleCascade.detectMultiScale(gray,1.1,4)
+    print('Disco',disc)
+    print('Hexagono',hexagon)
+    print('Octogono',octogon)
+    print('Triangulo',triangle)
+    
+    
+
+
+
 ######    CAPTURA DE IMAGENS    #####################
+saveData = False   # SAVE DATA FLAG
+
 myPath = 'data/images'
 moduleVal = 10  # SAVE EVERY ITH FRAME TO AVOID REPETITION
 minBlur = 0  # SMALLER VALUE MEANS MORE BLURRINESS PRESENT
-grayImage = False # IMAGES SAVED COLORED OR GRAY
-cannyImage = True # IMAGES SAVED COLORED OR CANNY
-
-saveData = False   # SAVE DATA FLAG
+colorImage = True # IMAGES SAVED COLORED
+grayImage = False # IMAGES SAVED GRAY
+cannyImage = False # IMAGES SAVED CANNY
 
 imgWidth = 240
 imgHeight = 240
@@ -269,7 +302,15 @@ countSave = 0
 if saveData:saveDataFunc()
 #####################################################
 
-#model = load_model('model_dataset\model.h5')
+
+model = load_model('keras_model_new.h5')
+labels = open('labels.txt', 'r').readlines()
+
+discCascade = cv2.CascadeClassifier("cascades/cascade_disc.xml")
+hexagonCascade = cv2.CascadeClassifier("cascades/cascade_hexagon.xml")
+octogonCascade = cv2.CascadeClassifier("cascades/cascade_octogon.xml")
+triangleCascade = cv2.CascadeClassifier("cascades/cascade_triangle.xml")
+
 
 print('Programa iniciado')
 
