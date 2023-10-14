@@ -12,14 +12,13 @@ import numpy as np
 import cv2
 import time
 
-# import tensorflow as tf
-# from tensorflow import keras
-# from tensorflow.keras import layers
-# from keras.models import load_model
+import tensorflow as tf
+from tensorflow import keras
+#from tensorflow.keras import layers
+from keras.models import load_model
 
 from zmqRemoteApi import RemoteAPIClient
 import handles
-import positions as pos
 
 ######################################################
 #####              BLOCO DE FUNÇÕES              #####
@@ -58,7 +57,7 @@ def stackImages(scale,imgArray):
     return ver
 
 # Get Contours
-def getContours(imag):
+""" def getContours(imag):
     contours,hierarchy = cv2.findContours(imag,cv2.RETR_EXTERNAL ,cv2.CHAIN_APPROX_NONE)
     for cnt in contours:
         area = cv2.contourArea(cnt)
@@ -82,6 +81,7 @@ def getContours(imag):
             cv2.putText(img,objectType,
                         (x+(w//2)-50, y+(h//2)-10),cv2.FONT_HERSHEY_DUPLEX,0.7,
                         (50,50,50),2)
+ """
 
 # Salvar Imagens Capturadas
 def saveDataFunc():
@@ -93,124 +93,96 @@ def saveDataFunc():
 
 # Analise Peças
 def partsAnalyze():
-    #intermed(handles.inter1)
+    intermed(handles.inter1)
 
+    targetPose=sim.getObjectPose(sim.getObject(handles.objP1),sim.handle_world)
     movementData = {
-        'id' : 'partsInit',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : pos.ObjP1
+        'id': 'partsInit',
+        'targetPose': targetPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
     }
     sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
 
-    movementData2 = {
-        'id' : 'partsMid',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : pos.ObjP2
+    targetPose=sim.getObjectPose(sim.getObject(handles.objP2),sim.handle_world)
+    movementData = {
+        'id': 'partsEnd',
+        'targetPose': targetPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
     }
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData2)
-    
-    movementData3 = {
-        'id' : 'partsEnd',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : pos.ObjP3
-    }
-
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData3)
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'partsInit')
-    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'partsMid')
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'partsEnd')
     waitForMovementExecuted('partsInit')
-    camera('partsMid')
     camera('partsEnd')
 
-    #intermed(handles.inter1)
+    intermed(handles.inter1)
 
 # Analisa locais para depositar as peças
 def boxAnalyze():
-    #intermed(handles.inter2)
+    intermed(handles.inter2)
 
+    targetPose=sim.getObjectPose(sim.getObject(handles.objC1),sim.handle_world)
     movementData = {
-        'id' : 'boxInit',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : pos.ObjC1
+        'id': 'boxInit',
+        'targetPose': targetPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
     }
     sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
 
-    movementData2 = {
-        'id' : 'boxMid',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : pos.ObjC2
+    targetPose=sim.getObjectPose(sim.getObject(handles.objC2),sim.handle_world)
+    movementData = {
+        'id': 'boxEnd',
+        'targetPose': targetPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
     }
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData2)
-    
-    movementData3 = {
-        'id' : 'boxEnd',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : pos.ObjC3
-    }
-
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData3)
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'boxInit')
-    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'boxMid')
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'boxEnd')
     waitForMovementExecuted('boxInit')
-    camera('boxMid')
     camera('boxEnd')
 
-    #intermed(handles.inter2)
+    intermed(handles.inter2)
 
 # Ponto de movimento intermediário de movimentação para evitar limite de juntas
 def intermed(position):
-    if position == "/Inter1":
-        target = pos.Inter1
-    else:
-        target = pos.Inter2
+    targetPose=sim.getObjectPose(sim.getObject(position),sim.handle_world)
     movementData = {
-        'id' : 'intermed',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : target
+        'id': 'inter',
+        'targetPose': targetPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
     }
     sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
-    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'intermed')
-    waitForMovementExecuted('intermed')
-    
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'inter')
+    waitForMovementExecuted('inter')
 
 # Ponto zero do manipulador
 def posZero():
-    movementData2 = {
+    targetPose=sim.getObjectPose(sim.getObject(handles.zero),sim.handle_world)
+    movementData = {
+        'id': 'movInit',
+        'targetPose': targetPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
+    }
+    '''movementData2 = {
         'id' : 'posZero',
         'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : [ 0 ] * 7
-    }
+        'maxVelJ'    : [0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005],
+        'maxAccelJ'  : [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001],
+        'maxJerkJ'   : [   80,    80,    80,    80,    80,    80,    80],
+        'targetConf' : [    0,     0,     0,     0,     0,     0,     0]
+    }'''
 
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData2)
-    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'posZero')
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'movInit')
     
-    waitForMovementExecuted('posZero')
+    waitForMovementExecuted('movInit')
+    #sim.callScriptFunction('moveToConfig',handles.script,movementData2)
 
 # Interrompe execução de outras partes do código enquanto algum movimento é executado
 def waitForMovementExecuted(id_):
@@ -225,7 +197,7 @@ def empty(a):
 
 
 def camera(id_):
-    global img, executedMovId, imgCanny, imgGray
+    global img, executedMovId#, imgCanny, imgGray
     while executedMovId != id_:
         img, res = sim.getVisionSensorImg(handles.visionSensor)
         img = np.frombuffer(img, dtype=np.uint8).reshape(res[0], res[1], 3)
@@ -233,18 +205,28 @@ def camera(id_):
         
 
         # # TENSORFLOW CODE
-        # img_tf = cv2.resize(img, (224, 224), interpolation=cv2.INTER_AREA)
-        # # Make the image a numpy array and reshape it to the models input shape.
-        # img_tf = np.asarray(img_tf, dtype=np.float32).reshape(1, 224, 224, 3)
-        # # Normalize the image array
-        # img_tf = (img_tf / 127.5) - 1
-        # # Have the model predict what the current image is. Model.predict
-        # # returns an array of percentages. Example:[0.2,0.8] meaning its 20% sure
-        # # it is the first label and 80% sure its the second label.
-        # probabilities = model.predict(img_tf)
-        # # Print what the highest value probabilitie label
-        # print(labels[np.argmax(probabilities)])
+
+        img_tf = cv2.resize(img, (224, 224), interpolation=cv2.INTER_AREA)
+        # Make the image a numpy array and reshape it to the models input shape.
+        img_tf = np.asarray(img_tf, dtype=np.float32).reshape(1, 224, 224, 3)
+        # Normalize the image array
+        img_tf = (img_tf / 127.5) - 1
+        # Have the model predict what the current image is. Model.predict
+        # returns an array of percentages. Example:[0.2,0.8] meaning its 20% sure
+        # it is the first label and 80% sure its the second label.
+        probabilities = model.predict(img_tf)
+        # Print what the highest value probabilitie label
+        print(labels[np.argmax(probabilities)])
+        label = labels[np.argmax(probabilities)]
+        if id_== 'partsEnd' :
+            if label not in partsSeq:
+                partsSeq.append(label)
         
+        if id_== 'boxEnd' :
+            if label not in boxSeq:
+                boxSeq.append(label)
+
+
         # # END TENSORFLOW CODE
         
 
@@ -271,30 +253,30 @@ def camera(id_):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = cv2.resize(img, (300 , 300))
        
-        #img_tensor = tf.convert_to_tensor(img, dtype=tf.uint8)
-        #img_tensor = tf.expand_dims(img_tensor , 0)
-        #prediction = model.predict(img_tensor)
-        #boxes, scores, classes, num_detections = model(img_tensor)
+        """ img_tensor = tf.convert_to_tensor(img, dtype=tf.uint8)
+        img_tensor = tf.expand_dims(img_tensor , 0)
+        prediction = model.predict(img_tensor)
+        boxes, scores, classes, num_detections = model(img_tensor) """
 
-        cMin = cv2.getTrackbarPos("cMin", "Camera")
-        cMax = cv2.getTrackbarPos("cMax", "Camera")
-        imgCanny = cv2.Canny(img,cMin,cMax)
-        imgGray = cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
+        # cMin = cv2.getTrackbarPos("cMin", "Camera")
+        # cMax = cv2.getTrackbarPos("cMax", "Camera")
+        # imgCanny = cv2.Canny(img,cMin,cMax)
+        # imgGray = cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
 
-        #kernel = np.ones((5,5),np.uint8)
-        #imgDialation = cv2.dilate(imgCanny,kernel,iterations=3) #dilata as linhas
-        #imgEroded = cv2.erode(imgDialation,kernel,iterations=3) #contrai as linhas
-        #getContours(imgEroded)
+        # kernel = np.ones((5,5),np.uint8)
+        # imgDialation = cv2.dilate(imgCanny,kernel,iterations=3) #dilata as linhas
+        # imgEroded = cv2.erode(imgDialation,kernel,iterations=3) #contrai as linhas
+        # getContours(imgEroded)
         
-        #getContours(imgCanny)
+        # getContours(imgCanny)
 
-        #imgStack = stackImages(1,[img,imgCanny,imgEroded])
-        imgStack = stackImages(1,[img,imgCanny])
+        # imgStack = stackImages(1,[img,imgCanny,imgEroded])
+        # imgStack = stackImages(1,[img,imgCanny])
 
-        cascades()
+        """ cascades() """
         
-        cv2.imshow('Camera', imgStack)
-        #cv2.imshow('Camera', img)
+        #cv2.imshow('Camera', imgStack)
+        cv2.imshow('Camera', img)
         cv2.waitKey(1)
         
         
@@ -302,7 +284,7 @@ def camera(id_):
     #pass
 
 
-def cascades():
+""" def cascades():
     global disc, triangle, hexagon, octogon
     scaleVal = 1 + ((cv2.getTrackbarPos("Scale", "Camera") + 1) /1000)
     neig = cv2.getTrackbarPos("Neig", "Camera")
@@ -350,36 +332,9 @@ def cascades():
         for (x,y,w,h) in triangle: 
             cv2.rectangle(img,(x,y),(x+w,y+h),(255,255,0),2)
             cv2.putText(img,"Triangulo",(x+(w//2)-50, y+(h//2)-10),cv2.FONT_HERSHEY_DUPLEX,0.7,(50,50,50),2)
-
+ """
     
-def positions():
-        file2 = open("locais.txt")
-        j=1
-        loc={}
-        while True:
-            loc[j] = file2.readline()[:-1]
-            if loc[j] == "quit":
-                break
-            j=j+1
-        for j in loc:
-            file1 = open("positions.txt", "a")
-            if loc[j] == "quit":
-                break
-            #intermed(handles.inter2)
-            if loc[j] == "/Inter2":
-                intermed("/Inter1")
-                intermed("/Zero")
-                posZero()
-            intermed(loc[j])
-            pos={}
-            file1.write(str(loc[j]) + "\n")
-            for i in handles.simJoints:
-                pos = sim.getJointPosition(handles.simJoints[i])
-                file1.write(""+str(pos)+";")
-            file1.write("\n")
-            file1.close()
-            #posZero()
-        
+    
 
 
 
@@ -405,10 +360,14 @@ if saveData:saveDataFunc()
 #####################################################
 
 
-# model = load_model('keras_model_new.h5')
-# labels = open('labels.txt', 'r').readlines()
+model = load_model('keras_model_new.h5', compile=False)
+labels = open('labels.txt', 'r').readlines()
 
+global partsSeq, boxSeq
+partsSeq = []
+boxSeq = []
 
+""" 
 global linux, canny
 linux=0
 canny=0
@@ -432,7 +391,8 @@ else:
     discCascade = cv2.CascadeClassifier("cascades/cascade_disc.xml")
     hexagonCascade = cv2.CascadeClassifier("cascades/cascade_hexagon.xml")
     octogonCascade = cv2.CascadeClassifier("cascades/cascade_octogon.xml")
-    triangleCascade = cv2.CascadeClassifier("cascades/cascade_triangle.xml")
+    triangleCascade = cv2.CascadeClassifier("cascades/cascade_triangle.xml") 
+"""
 
 
 print('Programa iniciado')
@@ -442,19 +402,19 @@ sim = client.getObject('sim')
 
 executedMovId = 'notReady'
 
-maxVel = 0.05
-maxAccel = 0.01
-maxJerk = 80
+maxVel = 0.005
+maxAccel = 0.001
 
-
+ 
 cv2.namedWindow("Camera")
+"""
 cv2.resizeWindow("Camera",imgWidth,imgHeight)
 cv2.createTrackbar("Scale","Camera",50,100,empty)
 cv2.createTrackbar("Neig","Camera",0,50,empty)
 #cv2.createTrackbar("Min Area","Camera",33000,100000,empty)
 cv2.createTrackbar("cMax","Camera",500,1000,empty)
 cv2.createTrackbar("cMin","Camera",200,1000,empty)
-
+"""
 
 # When simulation is not running, ZMQ message handling could be a bit
 # slow, since the idle loop runs at 8 Hz by default. So let's make
@@ -467,7 +427,7 @@ sim.setInt32Param(sim.intparam_idle_fps, 0)
 operando = True
 
 ## VARIAVEIS DE VERIFICAÇÃO DE ÚLTIMA ANÁLISE
-analyzed = True # True = Peças / False = Caixas
+analyzed = False # True = Peças / False = Caixas
 escape = 0
 limit = 2
 
@@ -476,7 +436,6 @@ waitForMovementExecuted('ready')
 #initialPose, initialConfig = sim.callScriptFunction('remoteApi_getPoseAndConfig',handles.script)
 
 while (operando):
-    #positions()
     if analyzed:
         partsAnalyze()
     else:
@@ -488,17 +447,16 @@ while (operando):
     
     if analyzed:
         analyzed = False
-        #posZero()
+        posZero()
         escape = escape+1
     else:
         analyzed = True
-        #posZero()
+        posZero()
         escape = escape+1
     
     if escape == limit:
         operando = False
 
-posZero()
 sim.stopSimulation()
 
 # Restore the original idle loop frequency:

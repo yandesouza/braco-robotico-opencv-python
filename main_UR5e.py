@@ -18,12 +18,20 @@ import time
 # from keras.models import load_model
 
 from zmqRemoteApi import RemoteAPIClient
-import handles
-import positions as pos
+import handles_UR5e as handles
+import IK_numerico as IK
 
 ######################################################
 #####              BLOCO DE FUNÇÕES              #####
 ######################################################
+
+# Callback
+def movCallback(config,vel,accel,handles):
+    for i in range(len(handles)):
+        if sim.getJointMode(handles[i])[0]==sim.jointmode_force and sim.isDynamicallyEnabled(handles[i]):
+            sim.setJointTargetPosition(handles[i],config[i])
+        else:
+            sim.setJointPosition(handles[i],config[i])
 
 # Stack Images
 def stackImages(scale,imgArray):
@@ -93,124 +101,112 @@ def saveDataFunc():
 
 # Analise Peças
 def partsAnalyze():
-    #intermed(handles.inter1)
+    intermed(handles.inter1)
 
+    targetPose=sim.getObjectPose(sim.getObject(handles.objP1),sim.handle_world)
     movementData = {
-        'id' : 'partsInit',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : pos.ObjP1
+        'id': 'partsInit',
+        'targetPose': targetPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
     }
     sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
 
-    movementData2 = {
-        'id' : 'partsMid',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : pos.ObjP2
+    targetPose=sim.getObjectPose(sim.getObject(handles.objP2),sim.handle_world)
+    movementData = {
+        'id': 'partsEnd',
+        'targetPose': targetPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
     }
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData2)
-    
-    movementData3 = {
-        'id' : 'partsEnd',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : pos.ObjP3
-    }
-
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData3)
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'partsInit')
-    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'partsMid')
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'partsEnd')
     waitForMovementExecuted('partsInit')
-    camera('partsMid')
     camera('partsEnd')
 
-    #intermed(handles.inter1)
+    intermed(handles.inter1)
 
 # Analisa locais para depositar as peças
 def boxAnalyze():
-    #intermed(handles.inter2)
+    intermed(handles.inter2)
 
+    targetPose=sim.getObjectPose(sim.getObject(handles.objC1),sim.handle_world)
     movementData = {
-        'id' : 'boxInit',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : pos.ObjC1
+        'id': 'boxInit',
+        'targetPose': targetPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
     }
     sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
 
-    movementData2 = {
-        'id' : 'boxMid',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : pos.ObjC2
+    targetPose=sim.getObjectPose(sim.getObject(handles.objC2),sim.handle_world)
+    movementData = {
+        'id': 'boxEnd',
+        'targetPose': targetPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
     }
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData2)
-    
-    movementData3 = {
-        'id' : 'boxEnd',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : pos.ObjC3
-    }
-
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData3)
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'boxInit')
-    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'boxMid')
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'boxEnd')
     waitForMovementExecuted('boxInit')
-    camera('boxMid')
     camera('boxEnd')
 
-    #intermed(handles.inter2)
+    intermed(handles.inter2)
 
 # Ponto de movimento intermediário de movimentação para evitar limite de juntas
 def intermed(position):
-    if position == "/Inter1":
-        target = pos.Inter1
-    else:
-        target = pos.Inter2
+    global currentConf, targetConfig
+    targetPosition = sim.getObjectPosition(sim.getObject(position),sim.handle_world)
+    initPosition = sim.getObjectPosition(handles.jointHandles[6],sim.handle_world)
+    targetConfig = IK.movement(initPosition,targetPosition)
     movementData = {
-        'id' : 'intermed',
-        'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel ] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : target
+        'id': 'inter',
+        'targetPos': targetConfig,
+        'maxVel': maxVel,
+        'maxJerk': maxJerk,
+        'maxAccel': maxAccel
     }
+    '''sim.moveToConfig(-1,
+                     currentConf,
+                     None,
+                     None,
+                     maxVel * np.ones(6),
+                     maxAccel * np.ones(6),
+                     maxJerk * np.ones(6),
+                     targetConfig,
+                     None,
+                     movCallback,
+                     handles.jointHandles)'''
     sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
-    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'intermed')
-    waitForMovementExecuted('intermed')
-    
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'inter')
+    waitForMovementExecuted('inter')
+    currentConf = targetConfig
 
 # Ponto zero do manipulador
 def posZero():
+    targetPose=sim.getObjectPose(sim.getObject(handles.zero),sim.handle_world)
+    movementData = {
+        'id': 'movInit',
+        'targetPose': targetPose,
+        'maxVel': maxVel,
+        'maxAccel': maxAccel
+    }
     movementData2 = {
         'id' : 'posZero',
         'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
-        'maxAccelJ'  : [ maxAccel] * 7,
-        'maxJerkJ'   : [ maxJerk ] * 7,
-        'targetConf' : [ 0 ] * 7
+        'maxVelJ'    : [ 0.01,  0.01,  0.01,  0.01,  0.01,  0.01,  0.01],
+        'maxAccelJ'  : [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001],
+        'maxJerkJ'   : [   80,    80,    80,    80,    80,    80,    80],
+        'targetConf' : [    0,     0,     0,     0,     0,     0,     0]
     }
 
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData2)
-    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'posZero')
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'movInit')
     
-    waitForMovementExecuted('posZero')
+    waitForMovementExecuted('movInit')
+    sim.callScriptFunction('moveToConfig',handles.script,movementData2)
 
 # Interrompe execução de outras partes do código enquanto algum movimento é executado
 def waitForMovementExecuted(id_):
@@ -352,34 +348,7 @@ def cascades():
             cv2.putText(img,"Triangulo",(x+(w//2)-50, y+(h//2)-10),cv2.FONT_HERSHEY_DUPLEX,0.7,(50,50,50),2)
 
     
-def positions():
-        file2 = open("locais.txt")
-        j=1
-        loc={}
-        while True:
-            loc[j] = file2.readline()[:-1]
-            if loc[j] == "quit":
-                break
-            j=j+1
-        for j in loc:
-            file1 = open("positions.txt", "a")
-            if loc[j] == "quit":
-                break
-            #intermed(handles.inter2)
-            if loc[j] == "/Inter2":
-                intermed("/Inter1")
-                intermed("/Zero")
-                posZero()
-            intermed(loc[j])
-            pos={}
-            file1.write(str(loc[j]) + "\n")
-            for i in handles.simJoints:
-                pos = sim.getJointPosition(handles.simJoints[i])
-                file1.write(""+str(pos)+";")
-            file1.write("\n")
-            file1.close()
-            #posZero()
-        
+    
 
 
 
@@ -442,9 +411,19 @@ sim = client.getObject('sim')
 
 executedMovId = 'notReady'
 
-maxVel = 0.05
-maxAccel = 0.01
-maxJerk = 80
+# Set-up some movement variables:
+mVel = 100 * np.pi / 180
+mAccel = 150 * np.pi / 180
+mJerk = 100 * np.pi / 180
+maxVel=[mVel,mVel,mVel,mVel,mVel,mVel]
+maxAccel=[mAccel,mAccel,mAccel,mAccel,mAccel,mAccel]
+maxJerk=[mJerk,mJerk,mJerk,mJerk,mJerk,mJerk]
+
+global currentConf
+currentConf = [0, 0, 0, 0, 0, 0]
+
+maxVel = 0.005
+maxAccel = 0.005
 
 
 cv2.namedWindow("Camera")
@@ -476,7 +455,6 @@ waitForMovementExecuted('ready')
 #initialPose, initialConfig = sim.callScriptFunction('remoteApi_getPoseAndConfig',handles.script)
 
 while (operando):
-    #positions()
     if analyzed:
         partsAnalyze()
     else:
@@ -488,17 +466,16 @@ while (operando):
     
     if analyzed:
         analyzed = False
-        #posZero()
+        posZero()
         escape = escape+1
     else:
         analyzed = True
-        #posZero()
+        posZero()
         escape = escape+1
     
     if escape == limit:
         operando = False
 
-posZero()
 sim.stopSimulation()
 
 # Restore the original idle loop frequency:

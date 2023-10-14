@@ -5,7 +5,7 @@ global stringSignalName, zero
 client = RemoteAPIClient()
 sim = client.getObject('sim')
 
-targetArm = '/LBRiiwa14R820'
+targetArm = '/UR5'
 manipulator = sim.getObject(targetArm)
 visionSensor = sim.getObject('/Vision_sensor')
 vacuum = sim.getObject('/suctionPad')
@@ -18,10 +18,8 @@ octogono = sim.getObject('/Octogono')
 #pontos de movimentação
 objC1 = '/ObjC1'
 objC2 = '/ObjC2'
-objC3 = '/ObjC3'
 objP1 = '/ObjP1'
 objP2 = '/ObjP2'
-objP3 = '/ObjP3'
 inter1 = '/Inter1'
 inter2 = '/Inter2'
 zero = '/Zero'
@@ -41,6 +39,6 @@ posC4 = '/C4'
 stringSignalName = targetArm + '_executedMovId'
 script = sim.getScript(sim.scripttype_childscript,manipulator)
 
-simJoints={}
-for i in range(1,8,1):
-    simJoints[i]=sim.getObject('./joint',{'index':i-1})
+jointHandles={}
+for i in range(1,7,1):
+    jointHandles[i]=sim.getObject('./joint',{'index':i-1})
