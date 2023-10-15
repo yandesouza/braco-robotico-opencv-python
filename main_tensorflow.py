@@ -19,6 +19,7 @@ from keras.models import load_model
 
 from zmqRemoteApi import RemoteAPIClient
 import handles
+import positions as pos
 
 ######################################################
 #####              BLOCO DE FUNÇÕES              #####
@@ -56,33 +57,6 @@ def stackImages(scale,imgArray):
         ver = hor
     return ver
 
-# Get Contours
-""" def getContours(imag):
-    contours,hierarchy = cv2.findContours(imag,cv2.RETR_EXTERNAL ,cv2.CHAIN_APPROX_NONE)
-    for cnt in contours:
-        area = cv2.contourArea(cnt)
-        #print("area: "+str(area))
-        if area>1000 and area<5000:
-            cv2.drawContours(img, cnt, -1, (255, 0, 0), 3)
-            peri = cv2.arcLength(cnt,True)
-            approx = cv2.approxPolyDP(cnt,0.01*peri,True)
-            objCor = len(approx)
-            x, y, w, h = cv2.boundingRect(approx)
-
-            if objCor == 3 : objectType = "Triangle"
-            elif objCor == 6 : objectType = "Hexagon"
-            elif objCor == 8 : objectType = "Octogon"
-            elif objCor > 10 : objectType = "Circle"
-            else : objectType = ""
-
-
-
-            cv2.rectangle(img,(x,y),(x+w,y+h),(255,53,184),2)
-            cv2.putText(img,objectType,
-                        (x+(w//2)-50, y+(h//2)-10),cv2.FONT_HERSHEY_DUPLEX,0.7,
-                        (50,50,50),2)
- """
-
 # Salvar Imagens Capturadas
 def saveDataFunc():
     global countFolder
@@ -93,96 +67,97 @@ def saveDataFunc():
 
 # Analise Peças
 def partsAnalyze():
-    intermed(handles.inter1)
-
-    targetPose=sim.getObjectPose(sim.getObject(handles.objP1),sim.handle_world)
     movementData = {
-        'id': 'partsInit',
-        'targetPose': targetPose,
-        'maxVel': maxVel,
-        'maxAccel': maxAccel
+        'id' : 'partsInit',
+        'handles'    : handles.simJoints,
+        'maxVelJ'    : [ maxVel ] * 7,
+        'maxAccelJ'  : [ maxAccel ] * 7,
+        'maxJerkJ'   : [ maxJerk ] * 7,
+        'targetConf' : pos.ObjP1
     }
     sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
 
-    targetPose=sim.getObjectPose(sim.getObject(handles.objP2),sim.handle_world)
-    movementData = {
-        'id': 'partsEnd',
-        'targetPose': targetPose,
-        'maxVel': maxVel,
-        'maxAccel': maxAccel
+    movementData2 = {
+        'id' : 'partsMid',
+        'handles'    : handles.simJoints,
+        'maxVelJ'    : [ maxVel ] * 7,
+        'maxAccelJ'  : [ maxAccel ] * 7,
+        'maxJerkJ'   : [ maxJerk ] * 7,
+        'targetConf' : pos.ObjP2
     }
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData2)
+    
+    movementData3 = {
+        'id' : 'partsEnd',
+        'handles'    : handles.simJoints,
+        'maxVelJ'    : [ maxVel ] * 7,
+        'maxAccelJ'  : [ maxAccel ] * 7,
+        'maxJerkJ'   : [ maxJerk ] * 7,
+        'targetConf' : pos.ObjP3
+    }
+
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData3)
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'partsInit')
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'partsMid')
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'partsEnd')
     waitForMovementExecuted('partsInit')
+    camera('partsMid')
     camera('partsEnd')
-
-    intermed(handles.inter1)
 
 # Analisa locais para depositar as peças
 def boxAnalyze():
-    intermed(handles.inter2)
-
-    targetPose=sim.getObjectPose(sim.getObject(handles.objC1),sim.handle_world)
     movementData = {
-        'id': 'boxInit',
-        'targetPose': targetPose,
-        'maxVel': maxVel,
-        'maxAccel': maxAccel
+        'id' : 'boxInit',
+        'handles'    : handles.simJoints,
+        'maxVelJ'    : [ maxVel ] * 7,
+        'maxAccelJ'  : [ maxAccel ] * 7,
+        'maxJerkJ'   : [ maxJerk ] * 7,
+        'targetConf' : pos.ObjC1
     }
     sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
 
-    targetPose=sim.getObjectPose(sim.getObject(handles.objC2),sim.handle_world)
-    movementData = {
-        'id': 'boxEnd',
-        'targetPose': targetPose,
-        'maxVel': maxVel,
-        'maxAccel': maxAccel
+    movementData2 = {
+        'id' : 'boxMid',
+        'handles'    : handles.simJoints,
+        'maxVelJ'    : [ maxVel ] * 7,
+        'maxAccelJ'  : [ maxAccel ] * 7,
+        'maxJerkJ'   : [ maxJerk ] * 7,
+        'targetConf' : pos.ObjC2
     }
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData2)
+    
+    movementData3 = {
+        'id' : 'boxEnd',
+        'handles'    : handles.simJoints,
+        'maxVelJ'    : [ maxVel ] * 7,
+        'maxAccelJ'  : [ maxAccel ] * 7,
+        'maxJerkJ'   : [ maxJerk ] * 7,
+        'targetConf' : pos.ObjC3
+    }
+
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData3)
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'boxInit')
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'boxMid')
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'boxEnd')
     waitForMovementExecuted('boxInit')
+    camera('boxMid')
     camera('boxEnd')
-
-    intermed(handles.inter2)
-
-# Ponto de movimento intermediário de movimentação para evitar limite de juntas
-def intermed(position):
-    targetPose=sim.getObjectPose(sim.getObject(position),sim.handle_world)
-    movementData = {
-        'id': 'inter',
-        'targetPose': targetPose,
-        'maxVel': maxVel,
-        'maxAccel': maxAccel
-    }
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
-    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'inter')
-    waitForMovementExecuted('inter')
 
 # Ponto zero do manipulador
 def posZero():
-    targetPose=sim.getObjectPose(sim.getObject(handles.zero),sim.handle_world)
-    movementData = {
-        'id': 'movInit',
-        'targetPose': targetPose,
-        'maxVel': maxVel,
-        'maxAccel': maxAccel
-    }
-    '''movementData2 = {
+    movementData2 = {
         'id' : 'posZero',
         'handles'    : handles.simJoints,
-        'maxVelJ'    : [0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005],
-        'maxAccelJ'  : [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001],
-        'maxJerkJ'   : [   80,    80,    80,    80,    80,    80,    80],
-        'targetConf' : [    0,     0,     0,     0,     0,     0,     0]
-    }'''
+        'maxVelJ'    : [ maxVel ] * 7,
+        'maxAccelJ'  : [ maxAccel] * 7,
+        'maxJerkJ'   : [ maxJerk ] * 7,
+        'targetConf' : [ 0 ] * 7
+    }
 
-    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
-    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'movInit')
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData2)
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'posZero')
     
-    waitForMovementExecuted('movInit')
-    #sim.callScriptFunction('moveToConfig',handles.script,movementData2)
+    waitForMovementExecuted('posZero')
 
 # Interrompe execução de outras partes do código enquanto algum movimento é executado
 def waitForMovementExecuted(id_):
@@ -258,83 +233,13 @@ def camera(id_):
         prediction = model.predict(img_tensor)
         boxes, scores, classes, num_detections = model(img_tensor) """
 
-        # cMin = cv2.getTrackbarPos("cMin", "Camera")
-        # cMax = cv2.getTrackbarPos("cMax", "Camera")
-        # imgCanny = cv2.Canny(img,cMin,cMax)
-        # imgGray = cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
-
-        # kernel = np.ones((5,5),np.uint8)
-        # imgDialation = cv2.dilate(imgCanny,kernel,iterations=3) #dilata as linhas
-        # imgEroded = cv2.erode(imgDialation,kernel,iterations=3) #contrai as linhas
-        # getContours(imgEroded)
-        
-        # getContours(imgCanny)
-
-        # imgStack = stackImages(1,[img,imgCanny,imgEroded])
-        # imgStack = stackImages(1,[img,imgCanny])
-
-        """ cascades() """
-        
+                
         #cv2.imshow('Camera', imgStack)
         cv2.imshow('Camera', img)
         cv2.waitKey(1)
         
         
         executedMovId = sim.getStringSignal(handles.stringSignalName)
-    #pass
-
-
-""" def cascades():
-    global disc, triangle, hexagon, octogon
-    scaleVal = 1 + ((cv2.getTrackbarPos("Scale", "Camera") + 1) /1000)
-    neig = cv2.getTrackbarPos("Neig", "Camera")
-    
-    #TESTA COM IMAGEM CANNY
-    if canny==1:
-        disc = discCascade.detectMultiScale(imgCanny,scaleVal, neig)
-        for (x,y,w,h) in disc: 
-            cv2.rectangle(imgCanny,(x,y),(x+w,y+h),(255,0,0),2)
-            cv2.putText(imgCanny,"Disco",(x+(w//2)-50, y+(h//2)-10),cv2.FONT_HERSHEY_DUPLEX,0.7,(50,50,50),2)
-        
-        hexagon = hexagonCascade.detectMultiScale(imgCanny,scaleVal,neig)
-        for (x,y,w,h) in hexagon: 
-            cv2.rectangle(imgCanny,(x,y),(x+w,y+h),(0,255,0),2)
-            cv2.putText(imgCanny,"Hexagono",(x+(w//2)-50, y+(h//2)-10),cv2.FONT_HERSHEY_DUPLEX,0.7,(50,50,50),2)
-        
-        octogon = octogonCascade.detectMultiScale(imgCanny,scaleVal,neig)
-        for (x,y,w,h) in octogon: 
-            cv2.rectangle(imgCanny,(x,y),(x+w,y+h),(0,0,255),2)
-            cv2.putText(imgCanny,"Octogono",(x+(w//2)-50, y+(h//2)-10),cv2.FONT_HERSHEY_DUPLEX,0.7,(50,50,50),2)
-        
-        triangle = triangleCascade.detectMultiScale(imgCanny,scaleVal,neig)
-        for (x,y,w,h) in triangle: 
-            cv2.rectangle(imgCanny,(x,y),(x+w,y+h),(255,255,0),2)
-            cv2.putText(imgCanny,"Triangulo",(x+(w//2)-50, y+(h//2)-10),cv2.FONT_HERSHEY_DUPLEX,0.7,(50,50,50),2)
-    
-    #TESTA COM ESCALA DE CINZA
-    else:
-        disc = discCascade.detectMultiScale(img,scaleVal, neig)
-        for (x,y,w,h) in disc: 
-            cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
-            cv2.putText(img,"Disco",(x+(w//2)-50, y+(h//2)-10),cv2.FONT_HERSHEY_DUPLEX,0.7,(50,50,50),2)
-        
-        hexagon = hexagonCascade.detectMultiScale(img,scaleVal,neig)
-        for (x,y,w,h) in hexagon: 
-            cv2.rectangle(img,(x,y),(x+w,y+h),(0,255,0),2)
-            cv2.putText(img,"Hexagono",(x+(w//2)-50, y+(h//2)-10),cv2.FONT_HERSHEY_DUPLEX,0.7,(50,50,50),2)
-        
-        octogon = octogonCascade.detectMultiScale(img,scaleVal,neig)
-        for (x,y,w,h) in octogon: 
-            cv2.rectangle(img,(x,y),(x+w,y+h),(0,0,255),2)
-            cv2.putText(img,"Octogono",(x+(w//2)-50, y+(h//2)-10),cv2.FONT_HERSHEY_DUPLEX,0.7,(50,50,50),2)
-        
-        triangle = triangleCascade.detectMultiScale(img,scaleVal,neig)
-        for (x,y,w,h) in triangle: 
-            cv2.rectangle(img,(x,y),(x+w,y+h),(255,255,0),2)
-            cv2.putText(img,"Triangulo",(x+(w//2)-50, y+(h//2)-10),cv2.FONT_HERSHEY_DUPLEX,0.7,(50,50,50),2)
- """
-    
-    
 
 
 
@@ -367,33 +272,6 @@ global partsSeq, boxSeq
 partsSeq = []
 boxSeq = []
 
-""" 
-global linux, canny
-linux=0
-canny=0
-
-if linux==1 and canny==1:
-    discCascade = cv2.CascadeClassifier("cascades/linux_canny_cascade_disc.xml")
-    hexagonCascade = cv2.CascadeClassifier("cascades/linux_canny_cascade_hexagon.xml")
-    octogonCascade = cv2.CascadeClassifier("cascades/linux_canny_cascade_octogon.xml")
-    triangleCascade = cv2.CascadeClassifier("cascades/linux_canny_cascade_triangle.xml")
-elif linux==1 and canny==0:
-    discCascade = cv2.CascadeClassifier("cascades/linux_cascade_disc.xml")
-    hexagonCascade = cv2.CascadeClassifier("cascades/linux_cascade_hexagon.xml")
-    octogonCascade = cv2.CascadeClassifier("cascades/linux_cascade_octogon.xml")
-    triangleCascade = cv2.CascadeClassifier("cascades/linux_cascade_triangle.xml")
-elif linux==0 and canny==1:
-    discCascade = cv2.CascadeClassifier("cascades/canny_cascade_disc.xml")
-    hexagonCascade = cv2.CascadeClassifier("cascades/canny_cascade_hexagon.xml")
-    octogonCascade = cv2.CascadeClassifier("cascades/canny_cascade_octogon.xml")
-    triangleCascade = cv2.CascadeClassifier("cascades/canny_cascade_triangle.xml")
-else:
-    discCascade = cv2.CascadeClassifier("cascades/cascade_disc.xml")
-    hexagonCascade = cv2.CascadeClassifier("cascades/cascade_hexagon.xml")
-    octogonCascade = cv2.CascadeClassifier("cascades/cascade_octogon.xml")
-    triangleCascade = cv2.CascadeClassifier("cascades/cascade_triangle.xml") 
-"""
-
 
 print('Programa iniciado')
 
@@ -402,19 +280,12 @@ sim = client.getObject('sim')
 
 executedMovId = 'notReady'
 
-maxVel = 0.005
-maxAccel = 0.001
+maxVel = 0.05
+maxAccel = 0.01
+maxJerk = 80
 
  
 cv2.namedWindow("Camera")
-"""
-cv2.resizeWindow("Camera",imgWidth,imgHeight)
-cv2.createTrackbar("Scale","Camera",50,100,empty)
-cv2.createTrackbar("Neig","Camera",0,50,empty)
-#cv2.createTrackbar("Min Area","Camera",33000,100000,empty)
-cv2.createTrackbar("cMax","Camera",500,1000,empty)
-cv2.createTrackbar("cMin","Camera",200,1000,empty)
-"""
 
 # When simulation is not running, ZMQ message handling could be a bit
 # slow, since the idle loop runs at 8 Hz by default. So let's make
@@ -423,17 +294,15 @@ defaultIdleFps = sim.getInt32Param(sim.intparam_idle_fps)
 sim.setInt32Param(sim.intparam_idle_fps, 0)
 
 
-#client.setStepping(True)
 operando = True
 
 ## VARIAVEIS DE VERIFICAÇÃO DE ÚLTIMA ANÁLISE
-analyzed = False # True = Peças / False = Caixas
+analyzed = True # True = Peças / False = Caixas
 escape = 0
 limit = 2
 
 sim.startSimulation()
 waitForMovementExecuted('ready')
-#initialPose, initialConfig = sim.callScriptFunction('remoteApi_getPoseAndConfig',handles.script)
 
 while (operando):
     if analyzed:
@@ -447,22 +316,20 @@ while (operando):
     
     if analyzed:
         analyzed = False
-        posZero()
         escape = escape+1
     else:
         analyzed = True
-        posZero()
         escape = escape+1
     
     if escape == limit:
         operando = False
 
+posZero()
 sim.stopSimulation()
 
 # Restore the original idle loop frequency:
 sim.setInt32Param(sim.intparam_idle_fps, defaultIdleFps)
 
-#input("Pressione qualquer tecla para finalizar.")
 cv2.destroyAllWindows()
 
 print('Program ended')
