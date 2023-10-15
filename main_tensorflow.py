@@ -11,6 +11,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 import numpy as np
 import cv2
 import time
+import statistics
 
 import tensorflow as tf
 from tensorflow import keras
@@ -70,7 +71,7 @@ def partsAnalyze():
     movementData = {
         'id' : 'partsInit',
         'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
+        'maxVelJ'    : [ maxVel*1.5 ] * 7,
         'maxAccelJ'  : [ maxAccel ] * 7,
         'maxJerkJ'   : [ maxJerk ] * 7,
         'targetConf' : pos.ObjP1
@@ -80,7 +81,7 @@ def partsAnalyze():
     movementData2 = {
         'id' : 'partsMid',
         'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
+        'maxVelJ'    : [ maxVel*0.5 ] * 7,
         'maxAccelJ'  : [ maxAccel ] * 7,
         'maxJerkJ'   : [ maxJerk ] * 7,
         'targetConf' : pos.ObjP2
@@ -90,7 +91,7 @@ def partsAnalyze():
     movementData3 = {
         'id' : 'partsEnd',
         'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
+        'maxVelJ'    : [ maxVel*0.5 ] * 7,
         'maxAccelJ'  : [ maxAccel ] * 7,
         'maxJerkJ'   : [ maxJerk ] * 7,
         'targetConf' : pos.ObjP3
@@ -109,7 +110,7 @@ def boxAnalyze():
     movementData = {
         'id' : 'boxInit',
         'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
+        'maxVelJ'    : [ maxVel*1.5 ] * 7,
         'maxAccelJ'  : [ maxAccel ] * 7,
         'maxJerkJ'   : [ maxJerk ] * 7,
         'targetConf' : pos.ObjC1
@@ -119,7 +120,7 @@ def boxAnalyze():
     movementData2 = {
         'id' : 'boxMid',
         'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
+        'maxVelJ'    : [ maxVel*0.5 ] * 7,
         'maxAccelJ'  : [ maxAccel ] * 7,
         'maxJerkJ'   : [ maxJerk ] * 7,
         'targetConf' : pos.ObjC2
@@ -129,7 +130,7 @@ def boxAnalyze():
     movementData3 = {
         'id' : 'boxEnd',
         'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel ] * 7,
+        'maxVelJ'    : [ maxVel*0.5 ] * 7,
         'maxAccelJ'  : [ maxAccel ] * 7,
         'maxJerkJ'   : [ maxJerk ] * 7,
         'targetConf' : pos.ObjC3
@@ -172,7 +173,7 @@ def empty(a):
 
 
 def camera(id_):
-    global img, executedMovId#, imgCanny, imgGray
+    global img, executedMovId, position
     while executedMovId != id_:
         img, res = sim.getVisionSensorImg(handles.visionSensor)
         img = np.frombuffer(img, dtype=np.uint8).reshape(res[0], res[1], 3)
@@ -191,16 +192,34 @@ def camera(id_):
         # it is the first label and 80% sure its the second label.
         probabilities = model.predict(img_tf)
         # Print what the highest value probabilitie label
+        position = sim.getObjectPosition(handles.vacuum, sim.handle_world)
         print(labels[np.argmax(probabilities)])
+        partsSeq.append(position[1])
         label = labels[np.argmax(probabilities)]
-        if id_== 'partsEnd' :
-            if label not in partsSeq:
-                partsSeq.append(label)
+        if id_== 'partsEnd' or id_ == 'partsMid' :
+           #if label not in partsSeq:
+            if position[1] > 0.29 and position[1] < 0.38:
+                posP1.append(label[2:-1])
+            elif position[1] > 0.11 and position[1] < 0.15:
+                posP2.append(label[2:-1])
+            elif position[1] > -0.15 and position[1] < -0.11:
+                posP3.append(label[2:-1])
+            elif position[1] > -0.38 and position[1] < -0.33:
+                posP4.append(label[2:-1])
         
-        if id_== 'boxEnd' :
-            if label not in boxSeq:
-                boxSeq.append(label)
+        if id_== 'boxEnd' or id_ == 'boxMid' :
+            #if label not in boxSeq:
+                #boxSeq.append(label)
+            if position[1] > 0.29 and position[1] < 0.38:
+                posC1.append(label[2:-1])
+            elif position[1] > 0.11 and position[1] < 0.15:
+                posC2.append(label[2:-1])
+            elif position[1] > -0.15 and position[1] < -0.1:
+                posC3.append(label[2:-1])
+            elif position[1] > -0.38 and position[1] < -0.33:
+                posC4.append(label[2:-1])
 
+        
 
         # # END TENSORFLOW CODE
         
@@ -242,6 +261,49 @@ def camera(id_):
         executedMovId = sim.getStringSignal(handles.stringSignalName)
 
 
+def catch(item):
+    if posP1 == item:
+        target = pos.P1
+    elif posP2 == item:
+        target = pos.P2
+    elif posP3 == item:
+        target = pos.P3
+    elif posP4 == item:
+        target = pos.P4
+
+    movementData = {
+        'id' : 'catch',
+        'handles'    : handles.simJoints,
+        'maxVelJ'    : [ maxVel*1.5 ] * 7,
+        'maxAccelJ'  : [ maxAccel ] * 7,
+        'maxJerkJ'   : [ maxJerk ] * 7,
+        'targetConf' : target
+    }
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'catch')
+    waitForMovementExecuted('catch')
+
+def place(item):
+    if posC1 == item:
+        target = pos.C1
+    elif posC2 == item:
+        target = pos.C2
+    elif posC3 == item:
+        target = pos.C3
+    elif posC4 == item:
+        target = pos.C4
+
+    movementData = {
+        'id' : 'place',
+        'handles'    : handles.simJoints,
+        'maxVelJ'    : [ maxVel*1.5 ] * 7,
+        'maxAccelJ'  : [ maxAccel ] * 7,
+        'maxJerkJ'   : [ maxJerk ] * 7,
+        'targetConf' : target
+    }
+    sim.callScriptFunction('remoteApi_movementDataFunction',handles.script,movementData)
+    sim.callScriptFunction('remoteApi_executeMovement',handles.script,'place')
+    waitForMovementExecuted('place')
 
 ######    CAPTURA DE IMAGENS    #####################
 saveData = False   # SAVE DATA FLAG
@@ -268,9 +330,17 @@ if saveData:saveDataFunc()
 model = load_model('keras_model_new.h5', compile=False)
 labels = open('labels.txt', 'r').readlines()
 
-global partsSeq, boxSeq
+global partsSeq, boxSeq, posP1, posP2, posP3, posP4, posC1, posC2, posC3, posC4
 partsSeq = []
 boxSeq = []
+posP1 = []
+posP2 = []
+posP3 = []
+posP4 = []
+posC1 = []
+posC2 = []
+posC3 = []
+posC4 = []
 
 
 print('Programa iniciado')
@@ -304,25 +374,28 @@ limit = 2
 sim.startSimulation()
 waitForMovementExecuted('ready')
 
-while (operando):
-    if analyzed:
-        partsAnalyze()
-    else:
-        boxAnalyze()
-    
-    ###
+partsAnalyze()
+boxAnalyze()
 
-    ###
+cv2.destroyAllWindows()
+
+posP1 = statistics.mode(posP1)
+posP2 = statistics.mode(posP2)
+posP3 = statistics.mode(posP3)
+posP4 = statistics.mode(posP4)
+posC1 = statistics.mode(posC1)
+posC2 = statistics.mode(posC2)
+posC3 = statistics.mode(posC3)
+posC4 = statistics.mode(posC4)
     
-    if analyzed:
-        analyzed = False
-        escape = escape+1
-    else:
-        analyzed = True
-        escape = escape+1
-    
-    if escape == limit:
-        operando = False
+catch(posP1)
+place(posP1)
+catch(posP2)
+place(posP2)
+catch(posP3)
+place(posP3)
+catch(posP4)
+place(posP4)
 
 posZero()
 sim.stopSimulation()
@@ -330,7 +403,7 @@ sim.stopSimulation()
 # Restore the original idle loop frequency:
 sim.setInt32Param(sim.intparam_idle_fps, defaultIdleFps)
 
-cv2.destroyAllWindows()
+
 
 print('Program ended')
 

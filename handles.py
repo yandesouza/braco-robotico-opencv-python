@@ -9,6 +9,10 @@ targetArm = '/LBRiiwa14R820'
 manipulator = sim.getObject(targetArm)
 visionSensor = sim.getObject('/Vision_sensor')
 vacuum = sim.getObject('/suctionPad')
+vacuumSensor = sim.getObject('/suctionPad/Sensor')
+vacuumL = sim.getObject('/suctionPad/LoopClosureDummy1')
+vacuumL2 = sim.getObject('/suctionPad/LoopClosureDummy2')
+vacuumLink = sim.getObject('/suctionPad/Link')
 
 triangulo = sim.getObject('/Triangulo')
 disco = sim.getObject('/Disco')
@@ -40,6 +44,7 @@ posC4 = '/C4'
 
 stringSignalName = targetArm + '_executedMovId'
 script = sim.getScript(sim.scripttype_childscript,manipulator)
+scriptV = sim.getScript(sim.scripttype_childscript,vacuum)
 
 simJoints={}
 for i in range(1,8,1):
