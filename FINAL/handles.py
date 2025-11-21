@@ -1,14 +1,20 @@
 from zmqRemoteApi import RemoteAPIClient
+#from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 
 global stringSignalName, zero
 
 client = RemoteAPIClient()
 sim = client.getObject('sim')
+#sim = client.require('sim') #NOVO
 
-targetArm = '/UR5'
+targetArm = '/LBRiiwa14R820'
 manipulator = sim.getObject(targetArm)
 visionSensor = sim.getObject('/Vision_sensor')
 vacuum = sim.getObject('/suctionPad')
+vacuumS = sim.getObject('/suctionPad/Sensor')
+vacuumL = sim.getObject('/suctionPad/LoopClosureDummy1')
+vacuumL2 = sim.getObject('/suctionPad/LoopClosureDummy2')
+vacuumLink = sim.getObject('/suctionPad/Link')
 
 triangulo = sim.getObject('/Triangulo')
 disco = sim.getObject('/Disco')
@@ -18,8 +24,10 @@ octogono = sim.getObject('/Octogono')
 #pontos de movimentação
 objC1 = '/ObjC1'
 objC2 = '/ObjC2'
+objC3 = '/ObjC3'
 objP1 = '/ObjP1'
 objP2 = '/ObjP2'
+objP3 = '/ObjP3'
 inter1 = '/Inter1'
 inter2 = '/Inter2'
 zero = '/Zero'
@@ -38,7 +46,8 @@ posC4 = '/C4'
 
 stringSignalName = targetArm + '_executedMovId'
 script = sim.getScript(sim.scripttype_childscript,manipulator)
+#scriptV = sim.getScript(sim.scripttype_childscript,vacuum)
 
-jointHandles={}
-for i in range(1,7,1):
-    jointHandles[i]=sim.getObject('./joint',{'index':i-1})
+simJoints={}
+for i in range(1,8,1):
+    simJoints[i]=sim.getObject('./joint',{'index':i-1})

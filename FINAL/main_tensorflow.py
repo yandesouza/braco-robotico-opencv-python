@@ -18,6 +18,7 @@ from tensorflow import keras
 #from tensorflow.keras import layers
 from keras.models import load_model
 
+#from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 from zmqRemoteApi import RemoteAPIClient
 import handles
 import positions as pos
@@ -81,7 +82,7 @@ def partsAnalyze():
     movementData2 = {
         'id' : 'partsMid',
         'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel*0.5 ] * 7,
+        'maxVelJ'    : [ maxVel ] * 7,
         'maxAccelJ'  : [ maxAccel ] * 7,
         'maxJerkJ'   : [ maxJerk ] * 7,
         'targetConf' : pos.ObjP2
@@ -91,7 +92,7 @@ def partsAnalyze():
     movementData3 = {
         'id' : 'partsEnd',
         'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel*0.5 ] * 7,
+        'maxVelJ'    : [ maxVel ] * 7,
         'maxAccelJ'  : [ maxAccel ] * 7,
         'maxJerkJ'   : [ maxJerk ] * 7,
         'targetConf' : pos.ObjP3
@@ -120,7 +121,7 @@ def boxAnalyze():
     movementData2 = {
         'id' : 'boxMid',
         'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel*0.5 ] * 7,
+        'maxVelJ'    : [ maxVel ] * 7,
         'maxAccelJ'  : [ maxAccel ] * 7,
         'maxJerkJ'   : [ maxJerk ] * 7,
         'targetConf' : pos.ObjC2
@@ -130,7 +131,7 @@ def boxAnalyze():
     movementData3 = {
         'id' : 'boxEnd',
         'handles'    : handles.simJoints,
-        'maxVelJ'    : [ maxVel*0.5 ] * 7,
+        'maxVelJ'    : [ maxVel ] * 7,
         'maxAccelJ'  : [ maxAccel ] * 7,
         'maxJerkJ'   : [ maxJerk ] * 7,
         'targetConf' : pos.ObjC3
@@ -178,10 +179,16 @@ def camera(id_):
         img, res = sim.getVisionSensorImg(handles.visionSensor)
         img = np.frombuffer(img, dtype=np.uint8).reshape(res[0], res[1], 3)
         img = cv2.flip(img, 0)
+
+        img2 = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img2 = cv2.resize(img2, (300 , 300))
+
+        #cv2.imshow('Camera', imgStack)
+        cv2.imshow('Camera', cv2.rotate(img2, cv2.ROTATE_90_COUNTERCLOCKWISE))
+        cv2.waitKey(1)
         
 
         # # TENSORFLOW CODE
-
         img_tf = cv2.resize(img, (224, 224), interpolation=cv2.INTER_AREA)
         # Make the image a numpy array and reshape it to the models input shape.
         img_tf = np.asarray(img_tf, dtype=np.float32).reshape(1, 224, 224, 3)
@@ -198,7 +205,7 @@ def camera(id_):
         label = labels[np.argmax(probabilities)]
         if id_== 'partsEnd' or id_ == 'partsMid' :
            #if label not in partsSeq:
-            if position[1] > 0.29 and position[1] < 0.38:
+            if position[1] > 0.25 and position[1] < 0.38:
                 posP1.append(label[2:-1])
             elif position[1] > 0.11 and position[1] < 0.15:
                 posP2.append(label[2:-1])
@@ -210,7 +217,7 @@ def camera(id_):
         if id_== 'boxEnd' or id_ == 'boxMid' :
             #if label not in boxSeq:
                 #boxSeq.append(label)
-            if position[1] > 0.29 and position[1] < 0.38:
+            if position[1] > 0.24 and position[1] < 0.38:
                 posC1.append(label[2:-1])
             elif position[1] > 0.11 and position[1] < 0.15:
                 posC2.append(label[2:-1])
@@ -244,24 +251,26 @@ def camera(id_):
                 countSave+=1
             count += 1
 
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = cv2.resize(img, (300 , 300))
-       
+              
         """ img_tensor = tf.convert_to_tensor(img, dtype=tf.uint8)
         img_tensor = tf.expand_dims(img_tensor , 0)
         prediction = model.predict(img_tensor)
         boxes, scores, classes, num_detections = model(img_tensor) """
-
-                
-        #cv2.imshow('Camera', imgStack)
-        cv2.imshow('Camera', img)
-        cv2.waitKey(1)
-        
-        
+       
         executedMovId = sim.getStringSignal(handles.stringSignalName)
 
 
 def catch(item):
+    global obj
+    if item == "Triangulo":
+        obj = handles.triangulo
+    elif item == "Hexagono":
+        obj = handles.hexagono
+    elif item == "Octogono":
+        obj = handles.octogono
+    else:
+        obj = handles.disco
+    
     if posP1 == item:
         target = pos.P1
     elif posP2 == item:
@@ -283,7 +292,20 @@ def catch(item):
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'catch')
     waitForMovementExecuted('catch')
 
+    if sim.getObjectInt32Param(obj,sim.shapeintparam_respondable) != 0 and sim.checkProximitySensor(handles.vacuumS,obj)[0] == 1:
+        # Make sure the two dummies are initially coincident:
+        sim.setObjectParent(handles.vacuumL,handles.vacuum,True)
+        m=sim.getObjectMatrix(handles.vacuumL2,sim.handle_world)
+        sim.setObjectMatrix(handles.vacuumL,sim.handle_world,m)
+        #Do the connection:
+        
+        sim.setLinkDummy(handles.vacuumL,handles.vacuumL2)
+    sim.setObjectParent(obj, handles.vacuumL,True) #MODIFICADO
+    sim.callScriptFunction('wait',handles.script,1)
+
+
 def place(item):
+    global obj
     if posC1 == item:
         target = pos.C1
     elif posC2 == item:
@@ -305,6 +327,16 @@ def place(item):
     sim.callScriptFunction('remoteApi_executeMovement',handles.script,'place')
     waitForMovementExecuted('place')
 
+    sim.setLinkDummy(handles.vacuumL,-1)
+    #sim.setObjectParent(handles.vacuumL,handles.vacuum,True)
+    sim.setObjectParent(obj, -1,True) #MODIFICADOclear
+    m=sim.getObjectMatrix(handles.vacuumL2,sim.handle_world)
+    sim.setObjectMatrix(handles.vacuumL,sim.handle_world,m)
+    
+    sim.callScriptFunction('wait',handles.script,1)
+
+
+
 ######    CAPTURA DE IMAGENS    #####################
 saveData = False   # SAVE DATA FLAG
 
@@ -322,6 +354,7 @@ global countFolder
 
 count = 0
 countSave = 0
+global obj
 
 if saveData:saveDataFunc()
 #####################################################
@@ -346,11 +379,25 @@ posC4 = []
 print('Programa iniciado')
 
 client = RemoteAPIClient()
+#sim = client.require('sim') #NOVO
 sim = client.getObject('sim')
+
+
+infiniteStrength=True
+maxPullForce=3
+maxShearForce=1
+maxPeelTorque=0.1
+enabled=True
+
+sim.setLinkDummy(handles.vacuumL,-1)
+sim.setObjectParent(handles.vacuumL,handles.vacuum,True)
+m=sim.getObjectMatrix(handles.vacuumL2,sim.handle_world)
+sim.setObjectMatrix(handles.vacuumL,sim.handle_world,m)
+
 
 executedMovId = 'notReady'
 
-maxVel = 0.05
+maxVel = 0.01
 maxAccel = 0.01
 maxJerk = 80
 
@@ -363,13 +410,6 @@ cv2.namedWindow("Camera")
 defaultIdleFps = sim.getInt32Param(sim.intparam_idle_fps)
 sim.setInt32Param(sim.intparam_idle_fps, 0)
 
-
-operando = True
-
-## VARIAVEIS DE VERIFICAÇÃO DE ÚLTIMA ANÁLISE
-analyzed = True # True = Peças / False = Caixas
-escape = 0
-limit = 2
 
 sim.startSimulation()
 waitForMovementExecuted('ready')
