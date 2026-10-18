@@ -1,10 +1,12 @@
 import numpy as np
 import handles
+import os
 
 def create_var(var_name, var_value):
     globals()[var_name] = var_value
 
-with open('pos.txt') as f:
+os.chdir(r'C:\Users\yan__\Documents\Codigos\TCC_Codes\braco-robotico-opencv-python\FINAL')
+with open("pos.txt", "r", encoding="utf-8") as f:
     contents = f.readlines()
 
 for i in range(0,len(contents)):
